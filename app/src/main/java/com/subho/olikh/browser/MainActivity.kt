@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -42,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -96,6 +98,9 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
+    var showTabs by rememberSaveable { mutableStateOf(false) }
+    val savedWebViewStates = remember { mutableStateMapOf<String, Bundle>() }
+    val activeTab = uiState.tabs.first { it.id == uiState.activeTabId }
 
     LaunchedEffect(uiState.currentUrl) {
         val view = webView ?: return@LaunchedEffect
@@ -109,9 +114,10 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = {
+        key(activeTab.id) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = {
                 WebView(context).apply {
                     webView = this
                     webViewClient = object : WebViewClient() {
@@ -166,11 +172,24 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     settings.javaScriptCanOpenWindowsAutomatically = false
                     settings.setSupportMultipleWindows(false)
                     settings.loadsImagesAutomatically = true
-                    loadUrl(uiState.currentUrl)
+
+                    val savedState = savedWebViewStates[activeTab.id]
+                    if (savedState != null) {
+                        restoreState(savedState)
+                    } else {
+                        loadUrl(activeTab.url)
+                    }
                 }
             },
-            update = { view -> webView = view }
+            update = { view -> webView = view },
+            onRelease = { released ->
+                val state = Bundle()
+                released.saveState(state)
+                savedWebViewStates[activeTab.id] = state
+                released.destroy()
+            }
         )
+    }
 
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -210,13 +229,40 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
             BrowserControls(
                 canGoBack = uiState.canGoBack,
                 canGoForward = uiState.canGoForward,
+                tabCount = uiState.tabs.size,
                 onBack = { webView?.goBack() },
                 onForward = { webView?.goForward() },
-                onRefresh = { webView?.reload() }
+                onRefresh = { webView?.reload() },
+                onTabs = { showTabs = true }
             )
         }
     }
 }
+
+        if (showTabs) {
+            ModalBottomSheet(
+                onDismissRequest = { showTabs = false },
+                containerColor = Obsidian,
+                contentColor = Ice
+            ) {
+                TabsSheet(
+                    tabs = uiState.tabs,
+                    activeTabId = uiState.activeTabId,
+                    onNewTab = {
+                        showTabs = false
+                        viewModel.newTab()
+                    },
+                    onSelectTab = { id ->
+                        showTabs = false
+                        viewModel.selectTab(id)
+                    },
+                    onCloseTab = { id ->
+                        viewModel.closeTab(id)
+                        savedWebViewStates.remove(id)
+                    }
+                )
+            }
+        }
 
 @Composable
 private fun Omnibox(
@@ -282,9 +328,11 @@ private fun Omnibox(
 private fun BrowserControls(
     canGoBack: Boolean,
     canGoForward: Boolean,
+    tabCount: Int,
     onBack: () -> Unit,
     onForward: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onTabs: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -318,8 +366,114 @@ private fun BrowserControls(
             IconButton(onClick = onRefresh) {
                 Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.refresh), tint = Ice)
             }
-            IconButton(onClick = { }) {
-                Icon(Icons.Outlined.Tab, contentDescription = stringResource(R.string.tabs), tint = Ice)
+            IconButton(onClick = onTabs) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.Tab, contentDescription = stringResource(R.string.tabs), tint = Ice)
+                    Surface(
+                        modifier = Modifier.align(Alignment.TopEnd),
+                        shape = RoundedCornerShape(5.dp),
+                        color = Sapphire
+                    ) {
+                        Text(
+                            text = tabCount.toString(),
+                            color = Ice,
+                            fontSize = 8.sp,
+                            lineHeight = 9.sp,
+                            modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TabsSheet(
+    tabs: List<BrowserTab>,
+    activeTabId: String,
+    onNewTab: () -> Unit,
+    onSelectTab: (String) -> Unit,
+    onCloseTab: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .navigationBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.tabs),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onNewTab) {
+                Icon(
+                    Icons.Outlined.Add,
+                    contentDescription = stringResource(R.string.new_tab),
+                    tint = Ice
+                )
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(360.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(tabs, key = { it.id }) { tab ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (tab.id == activeTabId) Graphite else Obsidian,
+                    border = BorderStroke(
+                        1.dp,
+                        if (tab.id == activeTabId) Sapphire else Border
+                    ),
+                    onClick = { onSelectTab(tab.id) }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = 14.dp,
+                                end = 6.dp,
+                                top = 10.dp,
+                                bottom = 10.dp
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = tab.title.ifBlank {
+                                    stringResource(R.string.new_tab)
+                                },
+                                color = Ice,
+                                maxLines = 1,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = tab.url,
+                                color = Slate,
+                                maxLines = 1,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+
+                        IconButton(onClick = { onCloseTab(tab.id) }) {
+                            Icon(
+                                Icons.Outlined.Close,
+                                contentDescription = stringResource(R.string.close_tab),
+                                tint = Slate
+                            )
+                        }
+                    }
+                }
             }
         }
     }

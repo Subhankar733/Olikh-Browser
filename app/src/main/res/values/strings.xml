@@ -8,4 +8,6 @@
     <string name="forward">Forward</string>
     <string name="refresh">Refresh</string>
     <string name="tabs">Tabs</string>
+    <string name="new_tab">New Tab</string>
+    <string name="close_tab">Close tab</string>
 </resources>
