@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +23,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.key
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -56,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -69,12 +75,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subho.olikh.browser.presentation.BrowserViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
-private val Obsidian = Color(0xFF0B0E14)
-private val Graphite = Color(0xFF141A24)
-private val Border = Color(0xFF222A36)
-private val Ice = Color(0xFFF1F5F9)
-private val Slate = Color(0xFF8A96A8)
-private val Sapphire = Color(0xFF2F6BFF)
+private val Obsidian = Color(0xFF080B12)
+private val DeepNavy = Color(0xFF0F1522)
+private val Glass = Color(0xFF141C2B)
+private val Border = Color(0xFF273249)
+private val Ice = Color(0xFFF4F7FB)
+private val Slate = Color(0xFF8D99AE)
+private val Sapphire = Color(0xFF4F7CFF)
+private val Electric = Color(0xFF79A7FF)
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -89,7 +97,7 @@ private fun OlikhTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = MaterialTheme.colorScheme.copy(
             background = Obsidian,
-            surface = Graphite,
+            surface = Glass,
             primary = Sapphire,
             onSurface = Ice,
             onBackground = Ice
@@ -169,6 +177,10 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                         override fun onProgressChanged(view: WebView?, newProgress: Int) {
                             viewModel.onProgressChanged(newProgress)
                         }
+
+                        override fun onReceivedTitle(view: WebView?, title: String?) {
+                            viewModel.onTitleChanged(title)
+                        }
                     }
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
@@ -227,7 +239,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                             modifier = Modifier
                                 .fillMaxWidth(uiState.progress / 100f)
                                 .height(2.dp)
-                                .background(Sapphire)
+                                .background(Brush.horizontalGradient(listOf(Sapphire, Electric)))
                         )
                     }
                 }
@@ -284,9 +296,9 @@ private fun Omnibox(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 10.dp),
         shape = RoundedCornerShape(24.dp),
-        color = Graphite,
+        color = DeepNavy,
         tonalElevation = 0.dp,
-        shadowElevation = 2.dp,
+        shadowElevation = 3.dp,
         border = BorderStroke(1.dp, Border)
     ) {
         Row(
@@ -347,7 +359,7 @@ private fun BrowserControls(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 10.dp),
         shape = RoundedCornerShape(22.dp),
-        color = Graphite.copy(alpha = 0.98f),
+        color = DeepNavy.copy(alpha = 0.98f),
         border = BorderStroke(1.dp, Border)
     ) {
         Row(
@@ -408,60 +420,89 @@ private fun TabsSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 18.dp)
             .navigationBarsPadding()
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 2.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = stringResource(R.string.tabs),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
+                color = Ice,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = onNewTab) {
-                Icon(
-                    Icons.Outlined.Add,
-                    contentDescription = stringResource(R.string.new_tab),
-                    tint = Ice
-                )
+            Surface(
+                modifier = Modifier.size(46.dp),
+                shape = CircleShape,
+                color = Sapphire,
+                shadowElevation = 7.dp,
+                onClick = onNewTab
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Outlined.Add,
+                        contentDescription = stringResource(R.string.new_tab),
+                        tint = Ice,
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
             }
         }
 
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(360.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .height(390.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(tabs, key = { it.id }) { tab ->
+                val active = tab.id == activeTabId
+                val tabShape = RoundedCornerShape(18.dp)
+
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (tab.id == activeTabId) Graphite else Obsidian,
-                    border = BorderStroke(
-                        1.dp,
-                        if (tab.id == activeTabId) Sapphire else Border
-                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(tabShape)
+                        .background(
+                            if (active) {
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFF1B2D4D), Color(0xFF101827))
+                                )
+                            } else {
+                                Brush.horizontalGradient(
+                                    listOf(DeepNavy, DeepNavy)
+                                )
+                            }
+                        )
+                        .border(
+                            width = if (active) 1.5.dp else 1.dp,
+                            color = if (active) Sapphire else Border,
+                            shape = tabShape
+                        ),
+                    shape = tabShape,
+                    color = Color.Transparent,
                     onClick = { onSelectTab(tab.id) }
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(
-                                start = 14.dp,
-                                end = 6.dp,
-                                top = 10.dp,
-                                bottom = 10.dp
-                            ),
+                            .padding(start = 14.dp, end = 5.dp, top = 13.dp, bottom = 13.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .clip(CircleShape)
+                                .background(if (active) Electric else Border)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = tab.title.ifBlank {
-                                    stringResource(R.string.new_tab)
-                                },
+                                text = tab.title.ifBlank { stringResource(R.string.new_tab) },
                                 color = Ice,
                                 maxLines = 1,
                                 style = MaterialTheme.typography.bodyLarge
@@ -473,12 +514,11 @@ private fun TabsSheet(
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
-
                         IconButton(onClick = { onCloseTab(tab.id) }) {
                             Icon(
                                 Icons.Outlined.Close,
                                 contentDescription = stringResource(R.string.close_tab),
-                                tint = Slate
+                                tint = if (active) Ice else Slate
                             )
                         }
                     }
