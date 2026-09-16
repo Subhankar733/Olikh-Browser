@@ -1,4 +1,4 @@
-name: Olikh Browser Build
+name: Olikh Browser CI
 
 on:
   push:
@@ -9,30 +9,42 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - name: Set up Gradle 9.6.0
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '9.6.0'
 
+      - name: Run unit tests
+        run: gradle --no-daemon :app:testDebugUnitTest
+
+      - name: Run Android lint
+        run: gradle --no-daemon :app:lintDebug
+
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: Olikh-Browser-debug
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
