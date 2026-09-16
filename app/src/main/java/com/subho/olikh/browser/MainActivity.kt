@@ -23,6 +23,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.key
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -237,7 +242,6 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
             )
         }
     }
-}
 
         if (showTabs) {
             ModalBottomSheet(
@@ -263,6 +267,8 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 )
             }
         }
+
+}
 
 @Composable
 private fun Omnibox(
