@@ -59,6 +59,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subho.olikh.browser.presentation.BrowserViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
 private val Obsidian = Color(0xFF0B0E14)
 private val Graphite = Color(0xFF141A24)
@@ -67,6 +68,7 @@ private val Ice = Color(0xFFF1F5F9)
 private val Slate = Color(0xFF8A96A8)
 private val Sapphire = Color(0xFF2F6BFF)
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
