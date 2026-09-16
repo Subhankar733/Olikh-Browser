@@ -1,7 +1,6 @@
 package com.subho.olikh.browser.data
 
 import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,7 +19,7 @@ class DefaultBrowserRepository @Inject constructor() : BrowserRepository {
             return "https://$value"
         }
 
-        val encoded = URLEncoder.encode(value, StandardCharsets.UTF_8)
+        val encoded = URLEncoder.encode(value, "UTF-8")
         return "https://www.google.com/search?q=$encoded"
     }
 

@@ -28,8 +28,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -158,8 +159,6 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     settings.domStorageEnabled = true
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
-                    settings.allowFileAccessFromFileURLs = false
-                    settings.allowUniversalAccessFromFileURLs = false
                     settings.mixedContentMode =
                         android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     settings.javaScriptCanOpenWindowsAutomatically = false
@@ -254,7 +253,7 @@ private fun Omnibox(
                     Box {
                         if (value.isEmpty()) {
                             Text(
-                                "Search or enter address",
+                                stringResource(R.string.search_or_enter_address),
                                 color = Slate,
                                 fontSize = 15.sp
                             )
@@ -266,11 +265,11 @@ private fun Omnibox(
 
             if (value.isNotEmpty()) {
                 IconButton(onClick = onClear) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Clear", tint = Slate)
+                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.clear), tint = Slate)
                 }
             } else {
                 IconButton(onClick = onSubmit) {
-                    Icon(Icons.Outlined.Search, contentDescription = "Search", tint = Ice)
+                    Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.search), tint = Ice)
                 }
             }
         }
@@ -302,23 +301,23 @@ private fun BrowserControls(
         ) {
             IconButton(onClick = onBack, enabled = canGoBack) {
                 Icon(
-                    Icons.Outlined.ArrowBack,
-                    contentDescription = "Back",
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
                     tint = if (canGoBack) Ice else Slate
                 )
             }
             IconButton(onClick = onForward, enabled = canGoForward) {
                 Icon(
-                    Icons.Outlined.ArrowForward,
-                    contentDescription = "Forward",
+                    Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = stringResource(R.string.forward),
                     tint = if (canGoForward) Ice else Slate
                 )
             }
             IconButton(onClick = onRefresh) {
-                Icon(Icons.Outlined.Refresh, contentDescription = "Refresh", tint = Ice)
+                Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.refresh), tint = Ice)
             }
             IconButton(onClick = { }) {
-                Icon(Icons.Outlined.Tab, contentDescription = "Tabs", tint = Ice)
+                Icon(Icons.Outlined.Tab, contentDescription = stringResource(R.string.tabs), tint = Ice)
             }
         }
     }

@@ -1,3 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Olikh Browser</string>
+    <string name="search_or_enter_address">Search or enter address</string>
+    <string name="clear">Clear</string>
+    <string name="search">Search</string>
+    <string name="back">Back</string>
+    <string name="forward">Forward</string>
+    <string name="refresh">Refresh</string>
+    <string name="tabs">Tabs</string>
 </resources>
