@@ -138,7 +138,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        PullToRefreshBox(isRefreshing = uiState.isLoading, onRefresh = { webView?.reload() }, modifier = Modifier.fillMaxSize()) { key(activeTab.id) {
+        key(activeTab.id) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = {
@@ -229,9 +229,6 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 savedWebViewStates[activeTab.id] = state
                 released.destroy()
             }
-        )
-    }
-}
         )
     }
 
