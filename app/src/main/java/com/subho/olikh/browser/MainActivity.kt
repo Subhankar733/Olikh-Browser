@@ -6,6 +6,11 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.app.DownloadManager
+import android.net.Uri
+import android.os.Environment
+import android.webkit.URLUtil
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -195,6 +200,19 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     settings.javaScriptCanOpenWindowsAutomatically = false
                     settings.setSupportMultipleWindows(false)
                     settings.loadsImagesAutomatically = true
+                    setDownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
+                        val request = DownloadManager.Request(Uri.parse(url)).apply {
+                            setMimeType(mimetype)
+                            addRequestHeader("User-Agent", userAgent)
+                            setDescription("Downloading file...")
+                            setTitle(URLUtil.guessFileName(url, contentDisposition, mimetype))
+                            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                            setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, URLUtil.guessFileName(url, contentDisposition, mimetype))
+                        }
+                        val dm = context.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as DownloadManager
+                        dm.enqueue(request)
+                        Toast.makeText(context, "Downloading...", Toast.LENGTH_SHORT).show()
+                    }
 
                     val savedState = savedWebViewStates[activeTab.id]
                     if (savedState != null) {
