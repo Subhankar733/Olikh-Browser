@@ -40,6 +40,8 @@ android {
 }
 
 dependencies {
+    implementation("androidx.webkit:webkit:1.12.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(platform(libs.androidx.compose.bom))
 

@@ -1,3 +1,10 @@
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
+import android.webkit.CookieManager
+import android.webkit.WebStorage
+import android.content.Intent
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import androidx.compose.material.icons.outlined.Share
 package com.subho.olikh.browser
 
 import android.annotation.SuppressLint
@@ -126,6 +133,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     var showTabs by rememberSaveable { mutableStateOf(false) }
     var isDesktopMode by rememberSaveable { mutableStateOf(false) }
+    var isWebDark by rememberSaveable { mutableStateOf(false) }
     val savedWebViewStates = remember { mutableStateMapOf<String, Bundle>() }
     val activeTab = uiState.tabs.first { it.id == uiState.activeTabId }
     BackHandler(enabled = showTabs || uiState.canGoBack) {
@@ -145,9 +153,22 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
             .navigationBarsPadding()
     ) {
         key(activeTab.id) {
+            var swipeRefreshRef by remember { mutableStateOf<SwipeRefreshLayout?>(null) }
+            LaunchedEffect(uiState.isLoading) {
+                swipeRefreshRef?.isRefreshing = uiState.isLoading
+            }
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
-                factory = {
+                factory = { ctx ->
+                    val srl = SwipeRefreshLayout(ctx).apply {
+                        setColorSchemeColors(0xFF2563EB.toInt())
+                        setProgressBackgroundColorSchemeColor(0xFF0F1522.toInt())
+                        setOnRefreshListener {
+                            webView?.reload()
+                        }
+                    }
+                    swipeRefreshRef = srl
+                    val wv = 
                 WebView(context).apply {
                     webView = this
                     webViewClient = object : WebViewClient() {
@@ -206,11 +227,20 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     settings.javaScriptCanOpenWindowsAutomatically = false
                     settings.setSupportMultipleWindows(false)
                     settings.loadsImagesAutomatically = true
+                    settings.setSupportZoom(true)
+                    settings.builtInZoomControls = true
+                    settings.displayZoomControls = false
                     val defaultUserAgent = settings.userAgentString
                     val desktopUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                     settings.userAgentString = if (isDesktopMode) desktopUserAgent else defaultUserAgent
                     settings.useWideViewPort = isDesktopMode
                     settings.loadWithOverviewMode = isDesktopMode
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                        WebSettingsCompat.setForceDark(
+                            settings,
+                            if (isWebDark) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
+                        )
+                    }
                     setDownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
                         val request = DownloadManager.Request(Uri.parse(url)).apply {
                             setMimeType(mimetype)
@@ -231,6 +261,11 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     } else {
                         loadUrl(activeTab.url)
                     }
+                    srl.addView(this, android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    ))
+                    srl
                 }
             },
             update = { view -> webView = view },
@@ -287,6 +322,35 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 onRefresh = { webView?.reload() },
                 onTabs = { showTabs = true },
                 isDesktopMode = isDesktopMode,
+                isWebDark = isWebDark,
+                onClearData = {
+                    webView?.clearCache(true)
+                    webView?.clearHistory()
+                    WebStorage.getInstance().deleteAllData()
+                    CookieManager.getInstance().removeAllCookies(null)
+                    Toast.makeText(context, "Browsing data cleared", Toast.LENGTH_SHORT).show()
+                    webView?.reload()
+                },
+                onToggleWebDark = {
+                    isWebDark = !isWebDark
+                    webView?.settings?.let { s ->
+                        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                            WebSettingsCompat.setForceDark(
+                                s,
+                                if (isWebDark) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
+                            )
+                        }
+                    }
+                    webView?.reload()
+                },
+                onNewTab = { viewModel.openTab("https://www.google.com") },
+                onShare = {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, uiState.address)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Link"))
+                },
                 onToggleDesktopMode = {
                     isDesktopMode = !isDesktopMode
                     webView?.settings?.let { s ->
@@ -397,6 +461,11 @@ private fun BrowserControls(
     onRefresh: () -> Unit,
     onTabs: () -> Unit,
     isDesktopMode: Boolean,
+    isWebDark: Boolean,
+    onClearData: () -> Unit,
+    onToggleWebDark: () -> Unit,
+    onNewTab: () -> Unit,
+    onShare: () -> Unit,
     onToggleDesktopMode: () -> Unit
 ) {
     Surface(
@@ -459,6 +528,48 @@ private fun BrowserControls(
                     onDismissRequest = { menuExpanded = false },
                     modifier = Modifier.background(DeepNavy).border(1.dp, Border, RoundedCornerShape(8.dp))
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("New tab", color = Ice, fontSize = 14.sp) },
+                        leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, tint = Ice) },
+                        onClick = {
+                            menuExpanded = false
+                            onNewTab()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Share", color = Ice, fontSize = 14.sp) },
+                        leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null, tint = Ice) },
+                        onClick = {
+                            menuExpanded = false
+                            onShare()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Dark web content", color = Ice, fontSize = 14.sp) },
+                        trailingIcon = {
+                            Checkbox(
+                                checked = isWebDark,
+                                onCheckedChange = null,
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Sapphire,
+                                    checkmarkColor = Ice,
+                                    uncheckedColor = Slate
+                                )
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onToggleWebDark()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Clear data", color = Ice, fontSize = 14.sp) },
+                        leadingIcon = { Icon(Icons.Outlined.Close, contentDescription = null, tint = Ice) },
+                        onClick = {
+                            menuExpanded = false
+                            onClearData()
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("Desktop site", color = Ice, fontSize = 14.sp) },
                         trailingIcon = {
