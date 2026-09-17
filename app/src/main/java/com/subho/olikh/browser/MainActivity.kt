@@ -7,6 +7,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -116,6 +117,9 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     var showTabs by rememberSaveable { mutableStateOf(false) }
     val savedWebViewStates = remember { mutableStateMapOf<String, Bundle>() }
     val activeTab = uiState.tabs.first { it.id == uiState.activeTabId }
+    BackHandler(enabled = showTabs || uiState.canGoBack) {
+        if (showTabs) showTabs = false else if (webView?.canGoBack() == true) webView?.goBack()
+    }
 
     LaunchedEffect(uiState.currentUrl) {
         val view = webView ?: return@LaunchedEffect
