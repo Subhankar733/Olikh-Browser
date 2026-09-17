@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.key
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
@@ -138,7 +140,12 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        key(activeTab.id) {
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { webView?.reload() },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            key(activeTab.id) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = {
@@ -228,6 +235,9 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 released.saveState(state)
                 savedWebViewStates[activeTab.id] = state
                 released.destroy()
+            }
+        )
+        }
             }
         )
     }
