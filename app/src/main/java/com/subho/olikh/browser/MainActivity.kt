@@ -54,6 +54,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -381,27 +382,34 @@ private fun Omnibox(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        shape = RoundedCornerShape(24.dp),
-        color = DeepNavy,
-        tonalElevation = 0.dp,
-        shadowElevation = 3.dp,
-        border = BorderStroke(1.dp, Border)
+            .statusBarsPadding()
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(26.dp),
+        color = DeepNavy.copy(alpha = 0.95f),
+        shadowElevation = 6.dp,
+        border = BorderStroke(1.dp, Border.copy(alpha = 0.8f))
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = Slate)
+            val isHttps = value.startsWith("https://", ignoreCase = true)
+            Icon(
+                imageVector = if (isHttps) Icons.Outlined.Lock else Icons.Outlined.Search,
+                contentDescription = null,
+                tint = if (isHttps) Sapphire else Slate,
+                modifier = Modifier.size(18.dp)
+            )
 
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 singleLine = true,
-                textStyle = TextStyle(color = Ice, fontSize = 15.sp),
+                textStyle = TextStyle(color = Ice, fontSize = 14.sp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { onSubmit() }),
                 decorationBox = { innerTextField ->
@@ -410,7 +418,7 @@ private fun Omnibox(
                             Text(
                                 stringResource(R.string.search_or_enter_address),
                                 color = Slate,
-                                fontSize = 15.sp
+                                fontSize = 14.sp
                             )
                         }
                         innerTextField()
@@ -419,12 +427,12 @@ private fun Omnibox(
             )
 
             if (value.isNotEmpty()) {
-                IconButton(onClick = onClear) {
-                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.clear), tint = Slate)
+                IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.clear), tint = Slate, modifier = Modifier.size(16.dp))
                 }
             } else {
-                IconButton(onClick = onSubmit) {
-                    Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.search), tint = Ice)
+                IconButton(onClick = onSubmit, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.search), tint = Ice, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -450,10 +458,12 @@ private fun BrowserControls(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = DeepNavy.copy(alpha = 0.98f),
-        border = BorderStroke(1.dp, Border)
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(28.dp),
+        color = DeepNavy.copy(alpha = 0.95f),
+        shadowElevation = 8.dp,
+        border = BorderStroke(1.dp, Border.copy(alpha = 0.7f))
     ) {
         Row(
             modifier = Modifier
@@ -505,7 +515,10 @@ private fun BrowserControls(
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
-                    modifier = Modifier.background(DeepNavy).border(1.dp, Border, RoundedCornerShape(8.dp))
+                    modifier = Modifier
+                        .background(DeepNavy)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, Border.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
                 ) {
                     DropdownMenuItem(
                         text = { Text("Share", color = Ice, fontSize = 14.sp) },
