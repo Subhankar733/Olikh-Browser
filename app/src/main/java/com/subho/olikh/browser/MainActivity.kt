@@ -48,6 +48,11 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Tab
@@ -120,6 +125,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
     var showTabs by rememberSaveable { mutableStateOf(false) }
+    var isDesktopMode by rememberSaveable { mutableStateOf(false) }
     val savedWebViewStates = remember { mutableStateMapOf<String, Bundle>() }
     val activeTab = uiState.tabs.first { it.id == uiState.activeTabId }
     BackHandler(enabled = showTabs || uiState.canGoBack) {
@@ -200,6 +206,11 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     settings.javaScriptCanOpenWindowsAutomatically = false
                     settings.setSupportMultipleWindows(false)
                     settings.loadsImagesAutomatically = true
+                    val defaultUserAgent = settings.userAgentString
+                    val desktopUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    settings.userAgentString = if (isDesktopMode) desktopUserAgent else defaultUserAgent
+                    settings.useWideViewPort = isDesktopMode
+                    settings.loadWithOverviewMode = isDesktopMode
                     setDownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
                         val request = DownloadManager.Request(Uri.parse(url)).apply {
                             setMimeType(mimetype)
@@ -274,7 +285,17 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 onBack = { webView?.goBack() },
                 onForward = { webView?.goForward() },
                 onRefresh = { webView?.reload() },
-                onTabs = { showTabs = true }
+                onTabs = { showTabs = true },
+                isDesktopMode = isDesktopMode,
+                onToggleDesktopMode = {
+                    isDesktopMode = !isDesktopMode
+                    webView?.settings?.let { s ->
+                        s.userAgentString = if (isDesktopMode) "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" else null
+                        s.useWideViewPort = isDesktopMode
+                        s.loadWithOverviewMode = isDesktopMode
+                    }
+                    webView?.reload()
+                }
             )
         }
     }
@@ -374,7 +395,9 @@ private fun BrowserControls(
     onBack: () -> Unit,
     onForward: () -> Unit,
     onRefresh: () -> Unit,
-    onTabs: () -> Unit
+    onTabs: () -> Unit,
+    isDesktopMode: Boolean,
+    onToggleDesktopMode: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -424,6 +447,36 @@ private fun BrowserControls(
                             modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
                         )
                     }
+                }
+            }
+            var menuExpanded by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Outlined.MoreVert, contentDescription = "Menu", tint = Ice)
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    modifier = Modifier.background(DeepNavy).border(1.dp, Border, RoundedCornerShape(8.dp))
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Desktop site", color = Ice, fontSize = 14.sp) },
+                        trailingIcon = {
+                            Checkbox(
+                                checked = isDesktopMode,
+                                onCheckedChange = null,
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Sapphire,
+                                    checkmarkColor = Ice,
+                                    uncheckedColor = Slate
+                                )
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onToggleDesktopMode()
+                        }
+                    )
                 }
             }
         }
