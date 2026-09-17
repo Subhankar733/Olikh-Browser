@@ -1,11 +1,10 @@
-import androidx.webkit.WebSettingsCompat
-import androidx.webkit.WebViewFeature
+package com.subho.olikh.browser
+import android.content.Intent
 import android.webkit.CookieManager
 import android.webkit.WebStorage
-import android.content.Intent
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.compose.material.icons.outlined.Share
-package com.subho.olikh.browser
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 
 import android.annotation.SuppressLint
 import android.os.Bundle
@@ -153,22 +152,9 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
             .navigationBarsPadding()
     ) {
         key(activeTab.id) {
-            var swipeRefreshRef by remember { mutableStateOf<SwipeRefreshLayout?>(null) }
-            LaunchedEffect(uiState.isLoading) {
-                swipeRefreshRef?.isRefreshing = uiState.isLoading
-            }
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    val srl = SwipeRefreshLayout(ctx).apply {
-                        setColorSchemeColors(0xFF2563EB.toInt())
-                        setProgressBackgroundColorSchemeColor(0xFF0F1522.toInt())
-                        setOnRefreshListener {
-                            webView?.reload()
-                        }
-                    }
-                    swipeRefreshRef = srl
-                    val wv = 
+                factory = {
                 WebView(context).apply {
                     webView = this
                     webViewClient = object : WebViewClient() {
@@ -261,11 +247,6 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     } else {
                         loadUrl(activeTab.url)
                     }
-                    srl.addView(this, android.view.ViewGroup.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                    ))
-                    srl
                 }
             },
             update = { view -> webView = view },
@@ -343,7 +324,6 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     }
                     webView?.reload()
                 },
-                onNewTab = { viewModel.openTab("https://www.google.com") },
                 onShare = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
@@ -464,7 +444,6 @@ private fun BrowserControls(
     isWebDark: Boolean,
     onClearData: () -> Unit,
     onToggleWebDark: () -> Unit,
-    onNewTab: () -> Unit,
     onShare: () -> Unit,
     onToggleDesktopMode: () -> Unit
 ) {
@@ -528,14 +507,6 @@ private fun BrowserControls(
                     onDismissRequest = { menuExpanded = false },
                     modifier = Modifier.background(DeepNavy).border(1.dp, Border, RoundedCornerShape(8.dp))
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("New tab", color = Ice, fontSize = 14.sp) },
-                        leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, tint = Ice) },
-                        onClick = {
-                            menuExpanded = false
-                            onNewTab()
-                        }
-                    )
                     DropdownMenuItem(
                         text = { Text("Share", color = Ice, fontSize = 14.sp) },
                         leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null, tint = Ice) },
