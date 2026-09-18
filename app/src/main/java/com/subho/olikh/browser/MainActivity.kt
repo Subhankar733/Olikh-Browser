@@ -105,12 +105,12 @@ import com.subho.olikh.browser.presentation.BrowserViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 private val Obsidian = Color(0xFF080B12)
-private val DeepNavy = Color(0xFF0F1522)
+private val DeepNavy = Color(0xFF0B0D13)
 private val Glass = Color(0xFF141C2B)
-private val Border = Color(0xFF273249)
-private val Ice = Color(0xFFF4F7FB)
-private val Slate = Color(0xFF8D99AE)
-private val Sapphire = Color(0xFF4F7CFF)
+private val Border = Color(0xFF1E2330)
+private val Ice = Color(0xFFEDEDF2)
+private val Slate = Color(0xFF7A839E)
+private val Sapphire = Color(0xFF6366F1)
 private val Electric = Color(0xFF79A7FF)
 
 private val AD_DOMAINS = setOf(
