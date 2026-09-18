@@ -1,4 +1,8 @@
 package com.subho.olikh.browser
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.DeleteOutline
+import java.io.ByteArrayInputStream
 import android.content.Intent
 import android.webkit.CookieManager
 import android.webkit.WebStorage
@@ -103,6 +107,11 @@ private val Sapphire = Color(0xFF4F7CFF)
 private val Electric = Color(0xFF79A7FF)
 
 @AndroidEntryPoint
+private val AD_DOMAINS = setOf(
+    "doubleclick.net", "googleadservices.com", "googlesyndication.com",
+    "adnxs.com", "pagead2.googlesyndication.com", "adservice.google.com"
+)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -345,6 +354,55 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
         }
     }
 
+        if (showHistoryDialog) {
+            androidx.compose.ui.window.Dialog(onDismissRequest = { showHistoryDialog = false }) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = DeepNavy,
+                    border = BorderStroke(1.dp, Border),
+                    modifier = Modifier.padding(16.dp).fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("History", color = Ice, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                            if (historyList.isNotEmpty()) {
+                                IconButton(onClick = { historyList.clear() }) {
+                                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Clear History", tint = Slate)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        if (historyList.isEmpty()) {
+                            Text("No browsing history.", color = Slate, fontSize = 14.sp)
+                        } else {
+                            historyList.take(20).forEach { item: Pair<String, String> ->
+                                val (hTitle, hUrl) = item
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.onAddressChanged(hUrl)
+                                            viewModel.submitAddress()
+                                            showHistoryDialog = false
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(hTitle, color = Ice, fontSize = 14.sp, maxLines = 1)
+                                        Text(hUrl, color = Slate, fontSize = 11.sp, maxLines = 1)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if (showTabs) {
             ModalBottomSheet(
                 onDismissRequest = { showTabs = false },
