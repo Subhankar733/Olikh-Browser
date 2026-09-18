@@ -30,6 +30,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -386,7 +389,11 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     border = BorderStroke(1.dp, Border),
                     modifier = Modifier.padding(16.dp).fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -419,6 +426,17 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(hTitle, color = Ice, fontSize = 14.sp, maxLines = 1)
                                         Text(hUrl, color = Slate, fontSize = 11.sp, maxLines = 1)
+                                    }
+                                    IconButton(
+                                        onClick = { historyList.remove(item) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove item",
+                                            tint = Slate,
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                     }
                                 }
                             }
