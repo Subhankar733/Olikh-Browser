@@ -6,6 +6,8 @@ import android.content.Intent
 import android.webkit.CookieManager
 import android.webkit.WebStorage
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.BookmarkAdd
+import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 
@@ -151,6 +153,8 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     var isAdBlockEnabled by rememberSaveable { mutableStateOf(true) }
     val historyList = remember { mutableStateListOf<Pair<String, String>>() }
     var showHistoryDialog by remember { mutableStateOf(false) }
+        var showBookmarksDialog by remember { mutableStateOf(false) }
+        val bookmarksList = remember { mutableStateListOf<Pair<String, String>>() }
     val savedWebViewStates = remember { mutableStateMapOf<String, Bundle>() }
     val activeTab = uiState.tabs.first { it.id == uiState.activeTabId }
     BackHandler(enabled = showTabs || uiState.canGoBack) {
@@ -341,6 +345,17 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 isAdBlockEnabled = isAdBlockEnabled,
                 onToggleAdBlock = { isAdBlockEnabled = !isAdBlockEnabled; webView?.reload() },
                 onShowHistory = { showHistoryDialog = true },
+                onAddBookmark = {
+                    val currentTitle = webView?.title?.ifBlank { webView?.url } ?: "New Bookmark"
+                    val currentUrl = webView?.url ?: ""
+                    if (currentUrl.isNotBlank() && bookmarksList.none { it.second == currentUrl }) {
+                        bookmarksList.add(0, Pair(currentTitle, currentUrl))
+                        android.widget.Toast.makeText(context, "Bookmark added", android.widget.Toast.LENGTH_SHORT).show()
+                    } else if (currentUrl.isNotBlank()) {
+                        android.widget.Toast.makeText(context, "Already bookmarked", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onShowBookmarks = { showBookmarksDialog = true },
                 onClearData = {
                     webView?.clearCache(true)
                     webView?.clearHistory()
@@ -381,6 +396,70 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
         }
     }
 
+        if (showBookmarksDialog) {
+            androidx.compose.ui.window.Dialog(onDismissRequest = { showBookmarksDialog = false }) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = DeepNavy,
+                    border = BorderStroke(1.dp, Border),
+                    modifier = Modifier.padding(16.dp).fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Bookmarks", color = Ice, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                            if (bookmarksList.isNotEmpty()) {
+                                IconButton(onClick = { bookmarksList.clear() }) {
+                                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Clear Bookmarks", tint = Slate)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        if (bookmarksList.isEmpty()) {
+                            Text("No bookmarks saved.", color = Slate, fontSize = 14.sp)
+                        } else {
+                            bookmarksList.forEach { item: Pair<String, String> ->
+                                val (bTitle, bUrl) = item
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.onAddressChanged(bUrl)
+                                            viewModel.submitAddress()
+                                            showBookmarksDialog = false
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(bTitle, color = Ice, fontSize = 14.sp, maxLines = 1)
+                                        Text(bUrl, color = Slate, fontSize = 11.sp, maxLines = 1)
+                                    }
+                                    IconButton(
+                                        onClick = { bookmarksList.remove(item) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove bookmark",
+                                            tint = Slate,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if (showHistoryDialog) {
             androidx.compose.ui.window.Dialog(onDismissRequest = { showHistoryDialog = false }) {
                 Surface(
@@ -553,6 +632,8 @@ private fun BrowserControls(
     isAdBlockEnabled: Boolean,
     onToggleAdBlock: () -> Unit,
     onShowHistory: () -> Unit,
+    onAddBookmark: () -> Unit,
+    onShowBookmarks: () -> Unit,
     onClearData: () -> Unit,
     onToggleWebDark: () -> Unit,
     onShare: () -> Unit,
