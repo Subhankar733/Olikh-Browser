@@ -201,6 +201,11 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                                 view?.canGoForward() == true
                             )
                             super.doUpdateVisitedHistory(view, url, isReload)
+                            if (!url.isNullOrBlank() && !url.startsWith("data:")) {
+                                val title = view?.title?.takeIf { it.isNotBlank() } ?: url
+                                historyList.removeAll { it.second == url }
+                                historyList.add(0, Pair(title, url))
+                            }
                         }
 
                         override fun shouldOverrideUrlLoading(
