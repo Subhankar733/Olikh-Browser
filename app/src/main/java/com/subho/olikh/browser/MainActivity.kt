@@ -14,6 +14,8 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import java.io.ByteArrayInputStream
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.app.DownloadManager
@@ -144,6 +146,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     var showTabs by rememberSaveable { mutableStateOf(false) }
     var isDesktopMode by rememberSaveable { mutableStateOf(false) }
     var isWebDark by rememberSaveable { mutableStateOf(false) }
+    var isAdBlockEnabled by rememberSaveable { mutableStateOf(true) }
     val historyList = remember { mutableStateListOf<Pair<String, String>>() }
     var showHistoryDialog by remember { mutableStateOf(false) }
     val savedWebViewStates = remember { mutableStateMapOf<String, Bundle>() }
@@ -206,6 +209,17 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                                 historyList.removeAll { it.second == url }
                                 historyList.add(0, Pair(title, url))
                             }
+                        }
+
+                        override fun shouldInterceptRequest(
+                            view: WebView?,
+                            request: WebResourceRequest?
+                        ): WebResourceResponse? {
+                            val host = request?.url?.host?.lowercase() ?: return null
+                            if (isAdBlockEnabled && AD_DOMAINS.any { host.contains(it) }) {
+                                return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
+                            }
+                            return super.shouldInterceptRequest(view, request)
                         }
 
                         override fun shouldOverrideUrlLoading(
@@ -322,6 +336,8 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 onTabs = { showTabs = true },
                 isDesktopMode = isDesktopMode,
                 isWebDark = isWebDark,
+                isAdBlockEnabled = isAdBlockEnabled,
+                onToggleAdBlock = { isAdBlockEnabled = !isAdBlockEnabled; webView?.reload() },
                 onShowHistory = { showHistoryDialog = true },
                 onClearData = {
                     webView?.clearCache(true)
@@ -517,6 +533,8 @@ private fun BrowserControls(
     onTabs: () -> Unit,
     isDesktopMode: Boolean,
     isWebDark: Boolean,
+    isAdBlockEnabled: Boolean,
+    onToggleAdBlock: () -> Unit,
     onShowHistory: () -> Unit,
     onClearData: () -> Unit,
     onToggleWebDark: () -> Unit,
@@ -620,6 +638,19 @@ private fun BrowserControls(
                         onClick = {
                             menuExpanded = false
                             onClearData()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Block ads", color = Ice, fontSize = 14.sp) },
+                        trailingIcon = {
+                            Checkbox(
+                                checked = isAdBlockEnabled,
+                                onCheckedChange = null
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onToggleAdBlock()
                         }
                     )
                     DropdownMenuItem(
