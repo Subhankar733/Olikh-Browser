@@ -106,12 +106,12 @@ private val Slate = Color(0xFF8D99AE)
 private val Sapphire = Color(0xFF4F7CFF)
 private val Electric = Color(0xFF79A7FF)
 
-@AndroidEntryPoint
 private val AD_DOMAINS = setOf(
     "doubleclick.net", "googleadservices.com", "googlesyndication.com",
     "adnxs.com", "pagead2.googlesyndication.com", "adservice.google.com"
 )
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -143,6 +143,8 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     var showTabs by rememberSaveable { mutableStateOf(false) }
     var isDesktopMode by rememberSaveable { mutableStateOf(false) }
     var isWebDark by rememberSaveable { mutableStateOf(false) }
+    val historyList = remember { mutableStateListOf<Pair<String, String>>() }
+    var showHistoryDialog by remember { mutableStateOf(false) }
     val savedWebViewStates = remember { mutableStateMapOf<String, Bundle>() }
     val activeTab = uiState.tabs.first { it.id == uiState.activeTabId }
     BackHandler(enabled = showTabs || uiState.canGoBack) {
