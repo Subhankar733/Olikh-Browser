@@ -21,13 +21,18 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
+
+      - name: Setup Gradle Build Action Cache
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+          gradle-home-cache-cleanup: true
 
       - name: Make Gradlew Executable
         run: chmod +x gradlew
 
       - name: Build Optimized Debug APK
-        run: ./gradlew assembleDebug --no-daemon --parallel --build-cache -x lint -x test
+        run: ./gradlew assembleDebug --parallel --build-cache -x lint -x test
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
