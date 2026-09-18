@@ -21,12 +21,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Gradle Build Action Cache
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          cache-read-only: false
-          gradle-home-cache-cleanup: true
+          cache: 'gradle'
 
       - name: Make Gradlew Executable
         run: chmod +x gradlew
