@@ -317,6 +317,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 onTabs = { showTabs = true },
                 isDesktopMode = isDesktopMode,
                 isWebDark = isWebDark,
+                onShowHistory = { showHistoryDialog = true },
                 onClearData = {
                     webView?.clearCache(true)
                     webView?.clearHistory()
@@ -511,6 +512,7 @@ private fun BrowserControls(
     onTabs: () -> Unit,
     isDesktopMode: Boolean,
     isWebDark: Boolean,
+    onShowHistory: () -> Unit,
     onClearData: () -> Unit,
     onToggleWebDark: () -> Unit,
     onShare: () -> Unit,
