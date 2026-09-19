@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-build-${{ github.ref }}
+  group: android-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -67,6 +70,26 @@ jobs:
           echo "Android SDK Platform 37: OK"
           echo "Android SDK Build Tools 37.0.0: OK"
           echo "Android SDK Platform-Tools: OK"
+
+      - name: Run Unit Tests
+        run: |
+          set -euo pipefail
+
+          gradle \
+            --no-daemon \
+            :app:testDebugUnitTest \
+            --stacktrace \
+            --warning-mode all
+
+      - name: Run Android Lint
+        run: |
+          set -euo pipefail
+
+          gradle \
+            --no-daemon \
+            :app:lintDebug \
+            --stacktrace \
+            --warning-mode all
 
       - name: Build Debug APK
         run: |
