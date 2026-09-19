@@ -284,7 +284,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                         }
 
                         override fun shouldOverrideUrlLoading(
-                            view: WebView?,
+                            view: WebView,
                             request: WebResourceRequest
                         ): Boolean {
                             val uri = request?.url ?: return false
