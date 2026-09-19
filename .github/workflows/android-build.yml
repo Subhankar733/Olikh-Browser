@@ -34,50 +34,30 @@ jobs:
           gradle-version: '9.6.0'
           cache-provider: basic
 
-      - name: Install Android SDK
-        shell: bash
+      - name: Verify Android SDK
         run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit 2>/dev/null || true)"
-          fi
-
-          if [ -z "$SDKMANAGER" ] || [ ! -x "$SDKMANAGER" ]; then
-            echo "::error::Android SDK command-line tools/sdkmanager was not found."
-            echo "ANDROID_HOME=$ANDROID_HOME"
-            find "$ANDROID_HOME" -maxdepth 4 -type f -name sdkmanager -print 2>/dev/null || true
-            exit 1
-          fi
-
-          echo "Using sdkmanager: $SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install --channel=3 \
-            "platform-tools" \
-            "platforms;android-37" \
-            "build-tools;37.0.0"
-
-      - name: Verify build environment
-        run: |
-          echo "===== JAVA ====="
-          java -version
-
-          echo "===== GRADLE ====="
-          gradle --version
-
           echo "===== ANDROID SDK ====="
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
 
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -f "$ANDROID_HOME/platforms/android-37.0/android.jar" || {
+            echo "::error::Android SDK Platform 37 is not installed."
+            exit 1
+          }
 
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit 2>/dev/null || true)"
-          fi
+          test -x "$ANDROID_HOME/build-tools/37.0.0/aapt2" || {
+            echo "::error::Android SDK Build Tools 37.0.0 is not installed."
+            exit 1
+          }
 
-          "$SDKMANAGER" --list_installed | grep -E \
-            'platforms;android-37|build-tools;36.0.0|platform-tools' || true
+          test -x "$ANDROID_HOME/platform-tools/adb" || {
+            echo "::error::Android SDK Platform-Tools is not installed."
+            exit 1
+          }
 
+          echo "Android SDK Platform 37: OK"
+          echo "Android SDK Build Tools 37.0.0: OK"
+          echo "Android SDK Platform-Tools: OK"
       - name: Clean project
         run: |
           gradle --no-daemon clean
