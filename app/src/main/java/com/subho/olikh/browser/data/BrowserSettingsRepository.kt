@@ -27,7 +27,7 @@ class BrowserSettingsRepository @Inject constructor(
         val adBlockEnabled = booleanPreferencesKey("ad_block_enabled")
     }
 
-    val settings: Flow<BrowserSettings> =
+    override val settings: Flow<BrowserSettings> =
         context.browserSettingsDataStore.data
             .catch { error ->
                 if (error is IOException) {
@@ -44,19 +44,19 @@ class BrowserSettingsRepository @Inject constructor(
                 )
             }
 
-    suspend fun setDesktopMode(enabled: Boolean) {
+    override suspend fun setDesktopMode(enabled: Boolean) {
         context.browserSettingsDataStore.edit { preferences ->
             preferences[Keys.desktopMode] = enabled
         }
     }
 
-    suspend fun setWebDarkMode(enabled: Boolean) {
+    override suspend fun setWebDarkMode(enabled: Boolean) {
         context.browserSettingsDataStore.edit { preferences ->
             preferences[Keys.webDarkMode] = enabled
         }
     }
 
-    suspend fun setAdBlockEnabled(enabled: Boolean) {
+    override suspend fun setAdBlockEnabled(enabled: Boolean) {
         context.browserSettingsDataStore.edit { preferences ->
             preferences[Keys.adBlockEnabled] = enabled
         }

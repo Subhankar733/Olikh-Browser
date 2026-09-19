@@ -8,13 +8,13 @@ import kotlinx.coroutines.flow.Flow
 class BrowserStorageRepository @Inject constructor(
     private val dao: BrowserDao
 ) : BrowserStorageDataSource {
-    val bookmarks: Flow<List<BookmarkEntity>> =
+    override val bookmarks: Flow<List<BookmarkEntity>> =
         dao.observeBookmarks()
 
-    val history: Flow<List<HistoryEntity>> =
+    override val history: Flow<List<HistoryEntity>> =
         dao.observeHistory()
 
-    suspend fun addBookmark(
+    override suspend fun addBookmark(
         url: String,
         title: String
     ) {
@@ -26,15 +26,15 @@ class BrowserStorageRepository @Inject constructor(
         )
     }
 
-    suspend fun removeBookmark(bookmark: BookmarkEntity) {
+    override suspend fun removeBookmark(bookmark: BookmarkEntity) {
         dao.deleteBookmark(bookmark)
     }
 
-    suspend fun clearBookmarks() {
+    override suspend fun clearBookmarks() {
         dao.clearBookmarks()
     }
 
-    suspend fun addHistory(
+    override suspend fun addHistory(
         url: String,
         title: String
     ) {
@@ -46,11 +46,11 @@ class BrowserStorageRepository @Inject constructor(
         )
     }
 
-    suspend fun removeHistory(history: HistoryEntity) {
+    override suspend fun removeHistory(history: HistoryEntity) {
         dao.deleteHistory(history)
     }
 
-    suspend fun clearHistory() {
+    override suspend fun clearHistory() {
         dao.clearHistory()
     }
 }
