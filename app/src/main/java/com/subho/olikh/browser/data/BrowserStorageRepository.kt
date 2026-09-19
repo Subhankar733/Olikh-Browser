@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 @Singleton
 class BrowserStorageRepository @Inject constructor(
     private val dao: BrowserDao
-) {
+) : BrowserStorageDataSource {
     val bookmarks: Flow<List<BookmarkEntity>> =
         dao.observeBookmarks()
 

@@ -6,8 +6,8 @@ import com.subho.olikh.browser.BrowserTab
 import com.subho.olikh.browser.DEFAULT_HOME_URL
 import com.subho.olikh.browser.data.BrowserRepository
 import com.subho.olikh.browser.data.BrowserSettings
-import com.subho.olikh.browser.data.BrowserSettingsRepository
-import com.subho.olikh.browser.data.BrowserStorageRepository
+import com.subho.olikh.browser.data.BrowserSettingsDataSource
+import com.subho.olikh.browser.data.BrowserStorageDataSource
 import com.subho.olikh.browser.data.BookmarkEntity
 import com.subho.olikh.browser.data.HistoryEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,8 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
 @HiltViewModel
 class BrowserViewModel @Inject constructor(
     private val repository: BrowserRepository,
-    private val storageRepository: BrowserStorageRepository,
-    private val settingsRepository: BrowserSettingsRepository
+    private val storageRepository: BrowserStorageDataSource,
+    private val settingsRepository: BrowserSettingsDataSource
 ) : ViewModel() {
 
     private var nextTabNumber = 2

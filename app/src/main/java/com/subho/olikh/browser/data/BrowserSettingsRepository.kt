@@ -19,7 +19,7 @@ private val Context.browserSettingsDataStore by preferencesDataStore(
 @Singleton
 class BrowserSettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : BrowserSettingsDataSource {
 
     private object Keys {
         val desktopMode = booleanPreferencesKey("desktop_mode")
