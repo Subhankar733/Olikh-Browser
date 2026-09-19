@@ -19,6 +19,10 @@ import android.webkit.WebResourceResponse
 import java.io.ByteArrayInputStream
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.net.http.SslError
+import android.webkit.SslErrorHandler
+import androidx.webkit.WebViewClientCompat
+import androidx.webkit.SafeBrowsingResponseCompat
 import android.app.DownloadManager
 import android.net.Uri
 import android.os.Environment
@@ -84,7 +88,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -148,13 +151,11 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
     var showTabs by rememberSaveable { mutableStateOf(false) }
-    var isDesktopMode by rememberSaveable { mutableStateOf(false) }
-    var isWebDark by rememberSaveable { mutableStateOf(false) }
-    var isAdBlockEnabled by rememberSaveable { mutableStateOf(true) }
-    val historyList = remember { mutableStateListOf<Pair<String, String>>() }
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
     var showHistoryDialog by remember { mutableStateOf(false) }
-        var showBookmarksDialog by remember { mutableStateOf(false) }
-        val bookmarksList = remember { mutableStateListOf<Pair<String, String>>() }
+    var showBookmarksDialog by remember { mutableStateOf(false) }
     val savedWebViewStates = remember { mutableStateMapOf<String, Bundle>() }
     val activeTab = uiState.tabs.first { it.id == uiState.activeTabId }
     BackHandler(enabled = showTabs || uiState.canGoBack) {
@@ -164,6 +165,14 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     LaunchedEffect(uiState.currentUrl) {
         val view = webView ?: return@LaunchedEffect
         if (view.url != uiState.currentUrl) view.loadUrl(uiState.currentUrl)
+    }
+
+    LaunchedEffect(
+        settings.desktopMode,
+        settings.webDarkMode,
+        settings.adBlockEnabled
+    ) {
+        webView?.reload()
     }
 
     Box(
@@ -179,7 +188,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 factory = {
                 WebView(context).apply {
                     webView = this
-                    webViewClient = object : WebViewClient() {
+                    webViewClient = object : WebViewClientCompat() {
                         override fun onPageStarted(
                             view: WebView?,
                             url: String?,
@@ -198,6 +207,47 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                                 view?.canGoBack() == true,
                                 view?.canGoForward() == true
                             )
+
+                            val resolvedUrl = url.orEmpty()
+                            if (resolvedUrl.isNotBlank()) {
+                                viewModel.addHistory(
+                                    resolvedUrl,
+                                    view?.title.orEmpty()
+                                )
+                            }
+                        }
+
+                        override fun onReceivedSslError(
+                            view: WebView?,
+                            handler: SslErrorHandler?,
+                            error: SslError?
+                        ) {
+                            handler?.cancel()
+                            Toast.makeText(
+                                context,
+                                "Secure connection error",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+
+                        override fun onSafeBrowsingHit(
+                            view: WebView,
+                            request: WebResourceRequest,
+                            threatType: Int,
+                            callback: SafeBrowsingResponseCompat
+                        ) {
+                            if (
+                                WebViewFeature.isFeatureSupported(
+                                    WebViewFeature.SAFE_BROWSING_RESPONSE_BACK_TO_SAFETY
+                                )
+                            ) {
+                                callback.backToSafety(true)
+                                Toast.makeText(
+                                    view.context,
+                                    "Unsafe web page blocked.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
 
                         override fun doUpdateVisitedHistory(
@@ -210,11 +260,6 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                                 view?.canGoForward() == true
                             )
                             super.doUpdateVisitedHistory(view, url, isReload)
-                            if (!url.isNullOrBlank() && !url.startsWith("data:")) {
-                                val title = view?.title?.takeIf { it.isNotBlank() } ?: url
-                                historyList.removeAll { it.second == url }
-                                historyList.add(0, Pair(title, url))
-                            }
                         }
 
                         override fun shouldInterceptRequest(
@@ -222,8 +267,17 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                             request: WebResourceRequest?
                         ): WebResourceResponse? {
                             val host = request?.url?.host?.lowercase() ?: return null
-                            if (isAdBlockEnabled && AD_DOMAINS.any { host.contains(it) }) {
-                                return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
+                            if (
+                                settings.adBlockEnabled &&
+                                AD_DOMAINS.any { domain ->
+                                    host == domain || host.endsWith(".$domain")
+                                }
+                            ) {
+                                return WebResourceResponse(
+                                    "text/plain",
+                                    "utf-8",
+                                    ByteArrayInputStream(ByteArray(0))
+                                )
                             }
                             return super.shouldInterceptRequest(view, request)
                         }
@@ -231,7 +285,28 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                         override fun shouldOverrideUrlLoading(
                             view: WebView?,
                             request: WebResourceRequest?
-                        ): Boolean = false
+                        ): Boolean {
+                            val uri = request?.url ?: return false
+                            val scheme = uri.scheme?.lowercase()
+
+                            if (scheme == "http" || scheme == "https") {
+                                return false
+                            }
+
+                            return try {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, uri)
+                                )
+                                true
+                            } catch (_: android.content.ActivityNotFoundException) {
+                                Toast.makeText(
+                                    context,
+                                    "No app can open this link",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                true
+                            }
+                        }
                     }
                     webChromeClient = object : WebChromeClient() {
                         override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -254,11 +329,18 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     settings.setSupportZoom(true)
                     settings.builtInZoomControls = true
                     settings.displayZoomControls = false
-                    val defaultUserAgent = settings.userAgentString
-                    val desktopUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                    settings.userAgentString = if (isDesktopMode) desktopUserAgent else defaultUserAgent
-                    settings.useWideViewPort = isDesktopMode
-                    settings.loadWithOverviewMode = isDesktopMode
+                    if (
+                        WebViewFeature.isFeatureSupported(
+                            WebViewFeature.SAFE_BROWSING_ENABLE
+                        )
+                    ) {
+                        WebSettingsCompat.setSafeBrowsingEnabled(settings, true)
+                    }
+
+                    settings.userAgentString =
+                        android.webkit.WebSettings.getDefaultUserAgent(context)
+                    settings.useWideViewPort = false
+                    settings.loadWithOverviewMode = false
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
                         WebSettingsCompat.setForceDark(
                             settings,
@@ -287,7 +369,34 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     }
                 }
             },
-            update = { view -> webView = view },
+            update = { view ->
+                webView = view
+
+                val desktopUserAgent =
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 " +
+                        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+                view.settings.userAgentString =
+                    if (settings.desktopMode) {
+                        desktopUserAgent
+                    } else {
+                        android.webkit.WebSettings.getDefaultUserAgent(context)
+                    }
+
+                view.settings.useWideViewPort = settings.desktopMode
+                view.settings.loadWithOverviewMode = settings.desktopMode
+
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                    WebSettingsCompat.setForceDark(
+                        view.settings,
+                        if (settings.webDarkMode) {
+                            WebSettingsCompat.FORCE_DARK_ON
+                        } else {
+                            WebSettingsCompat.FORCE_DARK_OFF
+                        }
+                    )
+                }
+            },
             onRelease = { released ->
                 val state = Bundle()
                 released.saveState(state)
@@ -340,19 +449,36 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 onForward = { webView?.goForward() },
                 onRefresh = { webView?.reload() },
                 onTabs = { showTabs = true },
-                isDesktopMode = isDesktopMode,
-                isWebDark = isWebDark,
-                isAdBlockEnabled = isAdBlockEnabled,
-                onToggleAdBlock = { isAdBlockEnabled = !isAdBlockEnabled; webView?.reload() },
+                isDesktopMode = settings.desktopMode,
+                isWebDark = settings.webDarkMode,
+                isAdBlockEnabled = settings.adBlockEnabled,
+                onToggleAdBlock = {
+                    viewModel.setAdBlockEnabled(!settings.adBlockEnabled)
+                },
                 onShowHistory = { showHistoryDialog = true },
                 onAddBookmark = {
-                    val currentTitle = webView?.title?.ifBlank { webView?.url } ?: "New Bookmark"
-                    val currentUrl = webView?.url ?: ""
-                    if (currentUrl.isNotBlank() && bookmarksList.none { it.second == currentUrl }) {
-                        bookmarksList.add(0, Pair(currentTitle, currentUrl))
-                        android.widget.Toast.makeText(context, "Bookmark added", android.widget.Toast.LENGTH_SHORT).show()
-                    } else if (currentUrl.isNotBlank()) {
-                        android.widget.Toast.makeText(context, "Already bookmarked", android.widget.Toast.LENGTH_SHORT).show()
+                    val currentUrl = webView?.url.orEmpty()
+                    val currentTitle = webView?.title.orEmpty().ifBlank { currentUrl }
+
+                    if (currentUrl.isBlank()) {
+                        Toast.makeText(
+                            context,
+                            "Nothing to bookmark",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else if (bookmarks.any { it.url == currentUrl }) {
+                        Toast.makeText(
+                            context,
+                            "Already bookmarked",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        viewModel.addBookmark(currentUrl, currentTitle)
+                        Toast.makeText(
+                            context,
+                            "Bookmark added",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 },
                 onShowBookmarks = { showBookmarksDialog = true },
@@ -361,20 +487,16 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     webView?.clearHistory()
                     WebStorage.getInstance().deleteAllData()
                     CookieManager.getInstance().removeAllCookies(null)
-                    Toast.makeText(context, "Browsing data cleared", Toast.LENGTH_SHORT).show()
+                    viewModel.clearHistory()
+                    Toast.makeText(
+                        context,
+                        "Browsing data cleared",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     webView?.reload()
                 },
                 onToggleWebDark = {
-                    isWebDark = !isWebDark
-                    webView?.settings?.let { s ->
-                        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
-                            WebSettingsCompat.setForceDark(
-                                s,
-                                if (isWebDark) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
-                            )
-                        }
-                    }
-                    webView?.reload()
+                    viewModel.setWebDarkMode(!settings.webDarkMode)
                 },
                 onShare = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -384,13 +506,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     context.startActivity(Intent.createChooser(shareIntent, "Share Link"))
                 },
                 onToggleDesktopMode = {
-                    isDesktopMode = !isDesktopMode
-                    webView?.settings?.let { s ->
-                        s.userAgentString = if (isDesktopMode) "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" else null
-                        s.useWideViewPort = isDesktopMode
-                        s.loadWithOverviewMode = isDesktopMode
-                    }
-                    webView?.reload()
+                    viewModel.setDesktopMode(!settings.desktopMode)
                 }
             )
         }
@@ -415,18 +531,19 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Bookmarks", color = Ice, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                            if (bookmarksList.isNotEmpty()) {
-                                IconButton(onClick = { bookmarksList.clear() }) {
+                            if (bookmarks.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.clearBookmarks() }) {
                                     Icon(Icons.Outlined.DeleteOutline, contentDescription = "Clear Bookmarks", tint = Slate)
                                 }
                             }
                         }
                         Spacer(modifier = Modifier.height(10.dp))
-                        if (bookmarksList.isEmpty()) {
+                        if (bookmarks.isEmpty()) {
                             Text("No bookmarks saved.", color = Slate, fontSize = 14.sp)
                         } else {
-                            bookmarksList.forEach { item: Pair<String, String> ->
-                                val (bTitle, bUrl) = item
+                            bookmarks.forEach { item ->
+                                val bTitle = item.title
+                                val bUrl = item.url
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -443,7 +560,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                                         Text(bUrl, color = Slate, fontSize = 11.sp, maxLines = 1)
                                     }
                                     IconButton(
-                                        onClick = { bookmarksList.remove(item) },
+                                        onClick = { viewModel.removeBookmark(item) },
                                         modifier = Modifier.size(24.dp)
                                     ) {
                                         Icon(
@@ -479,18 +596,19 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("History", color = Ice, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                            if (historyList.isNotEmpty()) {
-                                IconButton(onClick = { historyList.clear() }) {
+                            if (history.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.clearHistory() }) {
                                     Icon(Icons.Outlined.DeleteOutline, contentDescription = "Clear History", tint = Slate)
                                 }
                             }
                         }
                         Spacer(modifier = Modifier.height(10.dp))
-                        if (historyList.isEmpty()) {
+                        if (history.isEmpty()) {
                             Text("No browsing history.", color = Slate, fontSize = 14.sp)
                         } else {
-                            historyList.take(20).forEach { item: Pair<String, String> ->
-                                val (hTitle, hUrl) = item
+                            history.take(20).forEach { item ->
+                                val hTitle = item.title
+                                val hUrl = item.url
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -507,7 +625,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                                         Text(hUrl, color = Slate, fontSize = 11.sp, maxLines = 1)
                                     }
                                     IconButton(
-                                        onClick = { historyList.remove(item) },
+                                        onClick = { viewModel.removeHistory(item) },
                                         modifier = Modifier.size(24.dp)
                                     ) {
                                         Icon(

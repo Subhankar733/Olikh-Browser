@@ -40,7 +40,6 @@ android {
 }
 
 dependencies {
-    implementation("androidx.webkit:webkit:1.12.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -59,6 +58,9 @@ dependencies {
     implementation(libs.androidx.compose.icons.extended)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.webkit)
+implementation(libs.androidx.room.runtime)
+ksp(libs.androidx.room.compiler)
+implementation(libs.androidx.datastore.preferences)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

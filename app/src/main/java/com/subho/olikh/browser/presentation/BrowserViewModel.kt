@@ -1,24 +1,56 @@
 package com.subho.olikh.browser.presentation
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.subho.olikh.browser.BrowserTab
 import com.subho.olikh.browser.DEFAULT_HOME_URL
 import com.subho.olikh.browser.data.BrowserRepository
+import com.subho.olikh.browser.data.BrowserSettings
+import com.subho.olikh.browser.data.BrowserSettingsRepository
+import com.subho.olikh.browser.data.BrowserStorageRepository
+import com.subho.olikh.browser.data.BookmarkEntity
+import com.subho.olikh.browser.data.HistoryEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 @HiltViewModel
 class BrowserViewModel @Inject constructor(
-    private val repository: BrowserRepository
+    private val repository: BrowserRepository,
+    private val storageRepository: BrowserStorageRepository,
+    private val settingsRepository: BrowserSettingsRepository
 ) : ViewModel() {
 
     private var nextTabNumber = 2
 
     private val _uiState = MutableStateFlow(BrowserUiState())
     val uiState: StateFlow<BrowserUiState> = _uiState.asStateFlow()
+
+    val bookmarks: StateFlow<List<BookmarkEntity>> =
+        storageRepository.bookmarks.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+
+    val history: StateFlow<List<HistoryEntity>> =
+        storageRepository.history.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+
+    val settings: StateFlow<BrowserSettings> =
+        settingsRepository.settings.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            BrowserSettings()
+        )
 
     fun onAddressChanged(value: String) {
         _uiState.value = _uiState.value.copy(address = value)
@@ -152,6 +184,70 @@ class BrowserViewModel @Inject constructor(
             canGoBack = canGoBack,
             canGoForward = canGoForward
         )
+    }
+
+    fun addBookmark(url: String, title: String) {
+        if (url.isBlank()) return
+
+        viewModelScope.launch {
+            storageRepository.addBookmark(
+                url = url,
+                title = title.ifBlank { url }
+            )
+        }
+    }
+
+    fun removeBookmark(bookmark: BookmarkEntity) {
+        viewModelScope.launch {
+            storageRepository.removeBookmark(bookmark)
+        }
+    }
+
+    fun clearBookmarks() {
+        viewModelScope.launch {
+            storageRepository.clearBookmarks()
+        }
+    }
+
+    fun addHistory(url: String, title: String) {
+        if (url.isBlank() || url.startsWith("data:", ignoreCase = true)) return
+
+        viewModelScope.launch {
+            storageRepository.addHistory(
+                url = url,
+                title = title.ifBlank { url }
+            )
+        }
+    }
+
+    fun removeHistory(history: HistoryEntity) {
+        viewModelScope.launch {
+            storageRepository.removeHistory(history)
+        }
+    }
+
+    fun clearHistory() {
+        viewModelScope.launch {
+            storageRepository.clearHistory()
+        }
+    }
+
+    fun setDesktopMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDesktopMode(enabled)
+        }
+    }
+
+    fun setWebDarkMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setWebDarkMode(enabled)
+        }
+    }
+
+    fun setAdBlockEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAdBlockEnabled(enabled)
+        }
     }
 
     private fun updateActiveTab(
