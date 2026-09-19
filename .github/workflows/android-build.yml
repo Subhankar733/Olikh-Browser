@@ -19,7 +19,7 @@ concurrency:
 jobs:
   build:
     name: Test, Lint & Build Debug APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     defaults:
@@ -160,7 +160,7 @@ jobs:
           echo "APK validation: OK"
 
       - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Olikh-Browser-debug-${{ github.run_number }}
           path: |
