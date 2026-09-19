@@ -130,6 +130,35 @@ jobs:
           echo "Size: ${APK_SIZE_MB} MB"
           echo "SHA-256: $SHA256"
 
+      - name: Validate APK
+        run: |
+          set -euo pipefail
+
+          APK="$(find app/build/outputs/apk/debug \
+            -maxdepth 1 \
+            -type f \
+            -name '*.apk' \
+            -print -quit)"
+
+          if [ -z "$APK" ]; then
+            echo "::error::APK not found."
+            exit 1
+          fi
+
+          echo "===== APK SIGNATURE ====="
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose "$APK"
+
+          echo "===== APK CERTIFICATE ====="
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs "$APK"
+
+          echo "===== APK PACKAGE ====="
+          "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$APK"
+
+          echo "===== APK FILE ====="
+          ls -lh "$APK"
+
+          echo "APK validation: OK"
+
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
