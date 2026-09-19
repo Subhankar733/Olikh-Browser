@@ -151,9 +151,10 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
     var showTabs by rememberSaveable { mutableStateOf(false) }
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val browserSettings by viewModel.settings.collectAsStateWithLifecycle()
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
+    val currentAdBlockEnabled by androidx.compose.runtime.rememberUpdatedState(browserSettings.adBlockEnabled)
     var showHistoryDialog by remember { mutableStateOf(false) }
     var showBookmarksDialog by remember { mutableStateOf(false) }
     val savedWebViewStates = remember { mutableStateMapOf<String, Bundle>() }
@@ -168,9 +169,9 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
     }
 
     LaunchedEffect(
-        settings.desktopMode,
-        settings.webDarkMode,
-        settings.adBlockEnabled
+        browserSettings.desktopMode,
+        browserSettings.webDarkMode,
+        browserSettings.adBlockEnabled
     ) {
         webView?.reload()
     }
@@ -268,7 +269,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                         ): WebResourceResponse? {
                             val host = request?.url?.host?.lowercase() ?: return null
                             if (
-                                settings.adBlockEnabled &&
+                                currentAdBlockEnabled &&
                                 AD_DOMAINS.any { domain ->
                                     host == domain || host.endsWith(".$domain")
                                 }
@@ -284,7 +285,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
 
                         override fun shouldOverrideUrlLoading(
                             view: WebView?,
-                            request: WebResourceRequest?
+                            request: WebResourceRequest
                         ): Boolean {
                             val uri = request?.url ?: return false
                             val scheme = uri.scheme?.lowercase()
@@ -344,7 +345,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
                         WebSettingsCompat.setForceDark(
                             settings,
-                            if (isWebDark) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
+                            if (browserSettings.webDarkMode) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF
                         )
                     }
                     setDownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
@@ -377,19 +378,19 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
                 view.settings.userAgentString =
-                    if (settings.desktopMode) {
+                    if (browserSettings.desktopMode) {
                         desktopUserAgent
                     } else {
                         android.webkit.WebSettings.getDefaultUserAgent(context)
                     }
 
-                view.settings.useWideViewPort = settings.desktopMode
-                view.settings.loadWithOverviewMode = settings.desktopMode
+                view.settings.useWideViewPort = browserSettings.desktopMode
+                view.settings.loadWithOverviewMode = browserSettings.desktopMode
 
                 if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
                     WebSettingsCompat.setForceDark(
                         view.settings,
-                        if (settings.webDarkMode) {
+                        if (browserSettings.webDarkMode) {
                             WebSettingsCompat.FORCE_DARK_ON
                         } else {
                             WebSettingsCompat.FORCE_DARK_OFF
@@ -449,11 +450,11 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 onForward = { webView?.goForward() },
                 onRefresh = { webView?.reload() },
                 onTabs = { showTabs = true },
-                isDesktopMode = settings.desktopMode,
-                isWebDark = settings.webDarkMode,
-                isAdBlockEnabled = settings.adBlockEnabled,
+                isDesktopMode = browserSettings.desktopMode,
+                isWebDark = browserSettings.webDarkMode,
+                isAdBlockEnabled = browserSettings.adBlockEnabled,
                 onToggleAdBlock = {
-                    viewModel.setAdBlockEnabled(!settings.adBlockEnabled)
+                    viewModel.setAdBlockEnabled(!browserSettings.adBlockEnabled)
                 },
                 onShowHistory = { showHistoryDialog = true },
                 onAddBookmark = {
@@ -496,7 +497,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     webView?.reload()
                 },
                 onToggleWebDark = {
-                    viewModel.setWebDarkMode(!settings.webDarkMode)
+                    viewModel.setWebDarkMode(!browserSettings.webDarkMode)
                 },
                 onShare = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -506,7 +507,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     context.startActivity(Intent.createChooser(shareIntent, "Share Link"))
                 },
                 onToggleDesktopMode = {
-                    viewModel.setDesktopMode(!settings.desktopMode)
+                    viewModel.setDesktopMode(!browserSettings.desktopMode)
                 }
             )
         }
