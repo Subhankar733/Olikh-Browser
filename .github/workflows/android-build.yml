@@ -18,8 +18,13 @@ concurrency:
 
 jobs:
   build:
-    name: Build Debug APK
+    name: Test, Lint & Build Debug APK
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout source
@@ -71,42 +76,61 @@ jobs:
           echo "Android SDK Build Tools 37.0.0: OK"
           echo "Android SDK Platform-Tools: OK"
 
-      - name: Run Unit Tests
+      - name: Run tests, lint and build
         run: |
           set -euo pipefail
 
           gradle \
             --no-daemon \
             :app:testDebugUnitTest \
-            --stacktrace \
-            --warning-mode all
-
-      - name: Run Android Lint
-        run: |
-          set -euo pipefail
-
-          gradle \
-            --no-daemon \
             :app:lintDebug \
+            :app:assembleDebug \
             --stacktrace \
             --warning-mode all
 
-      - name: Build Debug APK
+      - name: Verify APK output
         run: |
           set -euo pipefail
 
-          gradle             --no-daemon             :app:assembleDebug             --stacktrace             --warning-mode all
+          APK="$(find app/build/outputs/apk/debug \
+            -maxdepth 1 \
+            -type f \
+            -name '*.apk' \
+            -print -quit)"
 
-      - name: Generate APK checksum
-        if: success()
-        run: |
-          set -euo pipefail
+          if [ -z "$APK" ]; then
+            echo "::error::Debug APK was not produced."
+            exit 1
+          fi
 
-          cd app/build/outputs/apk/debug
-          sha256sum *.apk | tee SHA256SUMS.txt
+          APK_SIZE="$(stat -c '%s' "$APK")"
+          APK_SIZE_MB="$(awk \
+            "BEGIN { printf \"%.2f\", $APK_SIZE / 1024 / 1024 }")"
+
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+
+          printf '%s  %s\n' \
+            "$SHA256" \
+            "$(basename "$APK")" \
+            > app/build/outputs/apk/debug/SHA256SUMS.txt
+
+          {
+            echo "## OLIKH Browser CI"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Commit | \`${GITHUB_SHA::12}\` |"
+            echo "| Branch/Ref | \`${GITHUB_REF_NAME}\` |"
+            echo "| APK | \`$(basename "$APK")\` |"
+            echo "| APK size | \`${APK_SIZE_MB} MB\` |"
+            echo "| SHA-256 | \`$SHA256\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "APK: $APK"
+          echo "Size: ${APK_SIZE_MB} MB"
+          echo "SHA-256: $SHA256"
 
       - name: Upload Debug APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Olikh-Browser-debug-${{ github.run_number }}
