@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import com.subho.olikh.browser.BrowserTab
 import com.subho.olikh.browser.presentation.OlikhDesignSystem.Colors
 import com.subho.olikh.browser.presentation.OlikhDesignSystem.Dimensions
 import com.subho.olikh.browser.presentation.OlikhDesignSystem.Shapes
