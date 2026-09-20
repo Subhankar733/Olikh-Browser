@@ -425,14 +425,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 onMenuClick = {
                     showTabs = true
                 }
-            ) {
-                key(activeTab.id) {
-                    AndroidView(
-                        modifier = Modifier.fillMaxSize(),
-                        factory = { webView!! }
-                    )
-                }
-            }
+            ) {}
 
             OlikhCommandDock(
                 modifier = Modifier
