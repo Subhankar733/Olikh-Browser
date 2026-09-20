@@ -105,6 +105,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subho.olikh.browser.presentation.BrowserViewModel
+import com.subho.olikh.browser.presentation.OlikhBrowserSurface
+import com.subho.olikh.browser.presentation.OlikhCommandDock
+import com.subho.olikh.browser.presentation.OlikhTabSurface
+import com.subho.olikh.browser.presentation.OlikhDesignSystem.Dimensions
 import dagger.hilt.android.AndroidEntryPoint
 
 private val Obsidian = Color(0xFF080B12)
@@ -407,111 +411,46 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
         )
     }
 
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Omnibox(
-                    value = uiState.address,
-                    onValueChange = viewModel::onAddressChanged,
-                    onSubmit = viewModel::submitAddress,
-                    onClear = { viewModel.onAddressChanged("") }
-                )
-
-                AnimatedVisibility(
-                    visible = uiState.isLoading,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                            .height(2.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(Border)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(uiState.progress / 100f)
-                                .height(2.dp)
-                                .background(Brush.horizontalGradient(listOf(Sapphire, Electric)))
-                        )
-                    }
+        Box(modifier = Modifier.fillMaxSize()) {
+            OlikhBrowserSurface(
+                modifier = Modifier.fillMaxSize(),
+                title = activeTab.title,
+                address = uiState.address,
+                isSecure = uiState.address.startsWith("https://", ignoreCase = true),
+                isChromeVisible = true,
+                tabCount = uiState.tabs.size,
+                onSurfaceClick = {
+                    viewModel.onAddressChanged(uiState.address)
+                },
+                onMenuClick = {
+                    showTabs = true
+                }
+            ) {
+                key(activeTab.id) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { webView!! }
+                    )
                 }
             }
 
-            BrowserControls(
+            OlikhCommandDock(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(
+                        horizontal = Dimensions.SpaceLg,
+                        vertical = Dimensions.SpaceSm
+                    ),
                 canGoBack = uiState.canGoBack,
                 canGoForward = uiState.canGoForward,
                 tabCount = uiState.tabs.size,
                 onBack = { webView?.goBack() },
                 onForward = { webView?.goForward() },
                 onRefresh = { webView?.reload() },
-                onTabs = { showTabs = true },
-                isDesktopMode = browserSettings.desktopMode,
-                isWebDark = browserSettings.webDarkMode,
-                isAdBlockEnabled = browserSettings.adBlockEnabled,
-                onToggleAdBlock = {
-                    viewModel.setAdBlockEnabled(!browserSettings.adBlockEnabled)
-                },
-                onShowHistory = { showHistoryDialog = true },
-                onAddBookmark = {
-                    val currentUrl = webView?.url.orEmpty()
-                    val currentTitle = webView?.title.orEmpty().ifBlank { currentUrl }
-
-                    if (currentUrl.isBlank()) {
-                        Toast.makeText(
-                            context,
-                            "Nothing to bookmark",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } else if (bookmarks.any { it.url == currentUrl }) {
-                        Toast.makeText(
-                            context,
-                            "Already bookmarked",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } else {
-                        viewModel.addBookmark(currentUrl, currentTitle)
-                        Toast.makeText(
-                            context,
-                            "Bookmark added",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                },
-                onShowBookmarks = { showBookmarksDialog = true },
-                onClearData = {
-                    webView?.clearCache(true)
-                    webView?.clearHistory()
-                    WebStorage.getInstance().deleteAllData()
-                    CookieManager.getInstance().removeAllCookies(null)
-                    viewModel.clearHistory()
-                    Toast.makeText(
-                        context,
-                        "Browsing data cleared",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    webView?.reload()
-                },
-                onToggleWebDark = {
-                    viewModel.setWebDarkMode(!browserSettings.webDarkMode)
-                },
-                onShare = {
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, uiState.address)
-                    }
-                    context.startActivity(Intent.createChooser(shareIntent, "Share Link"))
-                },
-                onToggleDesktopMode = {
-                    viewModel.setDesktopMode(!browserSettings.desktopMode)
-                }
+                onTabs = { showTabs = true }
             )
         }
-    }
 
         if (showBookmarksDialog) {
             androidx.compose.ui.window.Dialog(onDismissRequest = { showBookmarksDialog = false }) {
@@ -649,7 +588,7 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                 containerColor = Obsidian,
                 contentColor = Ice
             ) {
-                TabsSheet(
+                OlikhTabSurface(
                     tabs = uiState.tabs,
                     activeTabId = uiState.activeTabId,
                     onNewTab = {
@@ -663,353 +602,10 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
                     onCloseTab = { id ->
                         viewModel.closeTab(id)
                         savedWebViewStates.remove(id)
-                    }
+                    },
+                    modifier = Modifier.navigationBarsPadding()
                 )
             }
         }
 
-}
-
-@Composable
-private fun Omnibox(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    onClear: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(26.dp),
-        color = DeepNavy.copy(alpha = 0.95f),
-        shadowElevation = 6.dp,
-        border = BorderStroke(1.dp, Border.copy(alpha = 0.8f))
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val isHttps = value.startsWith("https://", ignoreCase = true)
-            Icon(
-                imageVector = if (isHttps) Icons.Outlined.Lock else Icons.Outlined.Search,
-                contentDescription = null,
-                tint = if (isHttps) Sapphire else Slate,
-                modifier = Modifier.size(18.dp)
-            )
-
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                singleLine = true,
-                textStyle = TextStyle(color = Ice, fontSize = 14.sp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                keyboardActions = KeyboardActions(onGo = { onSubmit() }),
-                decorationBox = { innerTextField ->
-                    Box {
-                        if (value.isEmpty()) {
-                            Text(
-                                stringResource(R.string.search_or_enter_address),
-                                color = Slate,
-                                fontSize = 14.sp
-                            )
-                        }
-                        innerTextField()
-                    }
-                }
-            )
-
-            if (value.isNotEmpty()) {
-                IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.clear), tint = Slate, modifier = Modifier.size(16.dp))
-                }
-            } else {
-                IconButton(onClick = onSubmit, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.search), tint = Ice, modifier = Modifier.size(18.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BrowserControls(
-    canGoBack: Boolean,
-    canGoForward: Boolean,
-    tabCount: Int,
-    onBack: () -> Unit,
-    onForward: () -> Unit,
-    onRefresh: () -> Unit,
-    onTabs: () -> Unit,
-    isDesktopMode: Boolean,
-    isWebDark: Boolean,
-    isAdBlockEnabled: Boolean,
-    onToggleAdBlock: () -> Unit,
-    onShowHistory: () -> Unit,
-    onAddBookmark: () -> Unit,
-    onShowBookmarks: () -> Unit,
-    onClearData: () -> Unit,
-    onToggleWebDark: () -> Unit,
-    onShare: () -> Unit,
-    onToggleDesktopMode: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(28.dp),
-        color = DeepNavy.copy(alpha = 0.95f),
-        shadowElevation = 8.dp,
-        border = BorderStroke(1.dp, Border.copy(alpha = 0.7f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack, enabled = canGoBack) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = stringResource(R.string.back),
-                    tint = if (canGoBack) Ice else Slate
-                )
-            }
-            IconButton(onClick = onForward, enabled = canGoForward) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = stringResource(R.string.forward),
-                    tint = if (canGoForward) Ice else Slate
-                )
-            }
-            IconButton(onClick = onRefresh) {
-                Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.refresh), tint = Ice)
-            }
-            IconButton(onClick = onTabs) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Tab, contentDescription = stringResource(R.string.tabs), tint = Ice)
-                    Surface(
-                        modifier = Modifier.align(Alignment.TopEnd),
-                        shape = RoundedCornerShape(5.dp),
-                        color = Sapphire
-                    ) {
-                        Text(
-                            text = tabCount.toString(),
-                            color = Ice,
-                            fontSize = 8.sp,
-                            lineHeight = 9.sp,
-                            modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
-                        )
-                    }
-                }
-            }
-            var menuExpanded by remember { mutableStateOf(false) }
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Outlined.MoreVert, contentDescription = "Menu", tint = Ice)
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    modifier = Modifier
-                        .background(DeepNavy)
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, Border.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Share", color = Ice, fontSize = 14.sp) },
-                        leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null, tint = Ice) },
-                        onClick = {
-                            menuExpanded = false
-                            onShare()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Dark web content", color = Ice, fontSize = 14.sp) },
-                        trailingIcon = {
-                            Checkbox(
-                                checked = isWebDark,
-                                onCheckedChange = null,
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = Sapphire,
-                                    checkmarkColor = Ice,
-                                    uncheckedColor = Slate
-                                )
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onToggleWebDark()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Clear data", color = Ice, fontSize = 14.sp) },
-                        leadingIcon = { Icon(Icons.Outlined.Close, contentDescription = null, tint = Ice) },
-                        onClick = {
-                            menuExpanded = false
-                            onClearData()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Block ads", color = Ice, fontSize = 14.sp) },
-                        trailingIcon = {
-                            Checkbox(
-                                checked = isAdBlockEnabled,
-                                onCheckedChange = null
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onToggleAdBlock()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Desktop site", color = Ice, fontSize = 14.sp) },
-                        trailingIcon = {
-                            Checkbox(
-                                checked = isDesktopMode,
-                                onCheckedChange = null,
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = Sapphire,
-                                    checkmarkColor = Ice,
-                                    uncheckedColor = Slate
-                                )
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onToggleDesktopMode()
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TabsSheet(
-    tabs: List<BrowserTab>,
-    activeTabId: String,
-    onNewTab: () -> Unit,
-    onSelectTab: (String) -> Unit,
-    onCloseTab: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp)
-            .navigationBarsPadding()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp, bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.tabs),
-                style = MaterialTheme.typography.headlineSmall,
-                color = Ice,
-                modifier = Modifier.weight(1f)
-            )
-            Surface(
-                modifier = Modifier.size(46.dp),
-                shape = CircleShape,
-                color = Sapphire,
-                shadowElevation = 7.dp,
-                onClick = onNewTab
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Outlined.Add,
-                        contentDescription = stringResource(R.string.new_tab),
-                        tint = Ice,
-                        modifier = Modifier.size(25.dp)
-                    )
-                }
-            }
-        }
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(390.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(tabs, key = { it.id }) { tab ->
-                val active = tab.id == activeTabId
-                val tabShape = RoundedCornerShape(18.dp)
-
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(tabShape)
-                        .background(
-                            if (active) {
-                                Brush.horizontalGradient(
-                                    listOf(Color(0xFF1B2D4D), Color(0xFF101827))
-                                )
-                            } else {
-                                Brush.horizontalGradient(
-                                    listOf(DeepNavy, DeepNavy)
-                                )
-                            }
-                        )
-                        .border(
-                            width = if (active) 1.5.dp else 1.dp,
-                            color = if (active) Sapphire else Border,
-                            shape = tabShape
-                        ),
-                    shape = tabShape,
-                    color = Color.Transparent,
-                    onClick = { onSelectTab(tab.id) }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 14.dp, end = 5.dp, top = 13.dp, bottom = 13.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(9.dp)
-                                .clip(CircleShape)
-                                .background(if (active) Electric else Border)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = tab.title.ifBlank { stringResource(R.string.new_tab) },
-                                color = Ice,
-                                maxLines = 1,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                text = tab.url,
-                                color = Slate,
-                                maxLines = 1,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        IconButton(onClick = { onCloseTab(tab.id) }) {
-                            Icon(
-                                Icons.Outlined.Close,
-                                contentDescription = stringResource(R.string.close_tab),
-                                tint = if (active) Ice else Slate
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
