@@ -609,3 +609,5 @@ private fun BrowserScreen(viewModel: BrowserViewModel = hiltViewModel()) {
         }
 
 }
+
+}
